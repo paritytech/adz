@@ -17,17 +17,27 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
     use codec::{Decode, Encode};
-    use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+    use frame_support::{
+        dispatch::DispatchResult,
+        pallet_prelude::*,
+        traits::{Currency, ExistenceRequirement::AllowDeath},
+        PalletId,
+    };
     use frame_system::pallet_prelude::*;
     use pallet_timestamp as timestamp;
     use sp_arithmetic::traits::SaturatedConversion;
+    use sp_runtime::traits::AccountIdConversion;
     use sp_std::prelude::*;
 
-    /// Configure the pallet by specifying the parameters and types on which it depends.
+    type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+    type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
+
     #[pallet::config]
     pub trait Config: timestamp::Config + frame_system::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type Currency: Currency<Self::AccountId>;
+        type PalletId: Get<PalletId>;
+        type CreateFee: Get<BalanceOf<Self>>;
     }
 
     #[derive(Encode, Decode, Clone)]
@@ -84,6 +94,9 @@ pub mod pallet {
             let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
+            let pallet = T::PalletId::get().into_account();
+
+            T::Currency::transfer(&sender, &pallet, T::CreateFee::get(), AllowDeath)?;
             let mut ads = match <Adz<T>>::get(&sender) {
                 Some(inner) => inner,
                 None => Vec::new(),
@@ -96,7 +109,6 @@ pub mod pallet {
                 created: now,
                 comments: vec![],
             });
-            // Something::put(something);
             <Adz<T>>::insert(&sender, ads);
             Self::deposit_event(Event::CreateAd(ads_len, sender));
             Ok(())
@@ -130,11 +142,6 @@ pub mod pallet {
                 }
                 None => Err(Error::<T>::InvalidIndex)?,
             }
-        }
-
-        #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
-        pub fn get_all(origin: OriginFor<T>) -> DispatchResult {
-            Ok(())
         }
     }
 }
