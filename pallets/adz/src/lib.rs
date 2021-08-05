@@ -40,13 +40,17 @@ pub mod pallet {
         type CreateFee: Get<BalanceOf<Self>>;
     }
 
-    #[derive(Encode, Decode, Clone)]
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(_);
+
+    #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
     pub struct Comment {
         body: Vec<u8>,
         created: u64,
     }
 
-    #[derive(Encode, Decode, Clone)]
+    #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
     pub struct Ad {
         title: Vec<u8>,
         body: Vec<u8>,
@@ -54,10 +58,6 @@ pub mod pallet {
         created: u64,
         comments: Vec<Comment>,
     }
-
-    #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    pub struct Pallet<T>(_);
 
     #[pallet::storage]
     #[pallet::getter(fn adz_map)]
@@ -68,9 +68,9 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        UpdateAd(u32, <T as frame_system::Config>::AccountId),
-        CreateAd(u32, <T as frame_system::Config>::AccountId),
-        DeleteAd(u32, <T as frame_system::Config>::AccountId),
+        UpdateAd(u32, T::AccountId),
+        CreateAd(u32, T::AccountId),
+        DeleteAd(u32, T::AccountId),
     }
 
     #[pallet::error]
@@ -94,9 +94,9 @@ pub mod pallet {
             let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            let pallet = T::PalletId::get().into_account();
-
-            T::Currency::transfer(&sender, &pallet, T::CreateFee::get(), AllowDeath)?;
+            let pallet: T::AccountId = T::PalletId::get().into_account();
+            let fee = T::CreateFee::get();
+            // T::Currency::transfer(&sender, &pallet, T::CreateFee::get(), AllowDeath)?;
             let mut ads = match <Adz<T>>::get(&sender) {
                 Some(inner) => inner,
                 None => Vec::new(),
