@@ -1,8 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 pub use pallet::*;
 
 #[cfg(test)]
@@ -96,7 +93,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             let pallet: T::AccountId = T::PalletId::get().into_account();
             let fee = T::CreateFee::get();
-            // T::Currency::transfer(&sender, &pallet, T::CreateFee::get(), AllowDeath)?;
+            T::Currency::transfer(&sender, &pallet, fee, AllowDeath)?;
             let mut ads = match <Adz<T>>::get(&sender) {
                 Some(inner) => inner,
                 None => Vec::new(),
