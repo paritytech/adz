@@ -29,11 +29,12 @@ pub mod pallet {
     type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
     type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
 
+    const ADZ_PALLET_ID: PalletId = PalletId(*b"py/adzzz");
+
     #[pallet::config]
     pub trait Config: timestamp::Config + frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type Currency: Currency<Self::AccountId>;
-        type PalletId: Get<PalletId>;
         type CreateFee: Get<BalanceOf<Self>>;
     }
 
@@ -91,7 +92,7 @@ pub mod pallet {
             let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            let pallet: T::AccountId = T::PalletId::get().into_account();
+            let pallet: T::AccountId = ADZ_PALLET_ID.into_account();
             let fee = T::CreateFee::get();
             T::Currency::transfer(&sender, &pallet, fee, AllowDeath)?;
             let mut ads = match <Adz<T>>::get(&sender) {

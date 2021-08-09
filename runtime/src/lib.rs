@@ -140,7 +140,6 @@ pub fn native_version() -> NativeVersion {
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
-    pub const AdzPalletId: PalletId = PalletId(*b"py/adzzz");
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -277,7 +276,6 @@ impl pallet_sudo::Config for Runtime {
 impl pallet_adz::Config for Runtime {
     type Event = Event;
     type CreateFee = CreateFee;
-    type PalletId = AdzPalletId;
     type Currency = Balances;
 }
 
