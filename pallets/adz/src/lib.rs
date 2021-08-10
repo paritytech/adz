@@ -92,7 +92,7 @@ pub mod pallet {
             let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            let pallet: T::AccountId = ADZ_PALLET_ID.into_account();
+            let pallet = ADZ_PALLET_ID.into_account();
             let fee = T::CreateFee::get();
             T::Currency::transfer(&sender, &pallet, fee, AllowDeath)?;
             let mut ads = match <Adz<T>>::get(&sender) {
@@ -140,6 +140,20 @@ pub mod pallet {
                 }
                 None => Err(Error::<T>::InvalidIndex)?,
             }
+        }
+
+        #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
+        pub fn delete(origin: OriginFor<T>, index: u8) -> DispatchResult {
+            // Check that the extrinsic was signed and get the signer.
+            let sender = ensure_signed(origin)?;
+            let mut ads = match <Adz<T>>::get(&sender) {
+                Some(inner) => inner,
+                None => Vec::new(),
+            };
+
+            ads.remove(index as usize);
+            Self::deposit_event(Event::DeleteAd(index as u32, sender));
+            Ok(())
         }
     }
 }
