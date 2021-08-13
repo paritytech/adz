@@ -150,7 +150,6 @@ pub mod pallet {
                 Some(inner) => inner,
                 None => Vec::new(),
             };
-
             ads.remove(index as usize);
             Self::deposit_event(Event::DeleteAd(index as u32, sender));
             Ok(())

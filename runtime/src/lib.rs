@@ -295,7 +295,7 @@ construct_runtime!(
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
         // Include the custom logic from the pallet-template in the runtime.
-        AdzModule: pallet_adz::{Pallet, Call, Storage, Event<T>},
+        Adz: pallet_adz::{Pallet, Call, Storage, Event<T>},
     }
 );
 
