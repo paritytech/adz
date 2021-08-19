@@ -14,9 +14,9 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const SS58Prefix: u8 = 42;
     pub const MinimumPeriod: u64 = 3;
-    pub const ExistentialDeposit: u128 = 500;
+    pub const ExistentialDeposit: u128 = 1;
     pub const MaxLocks: u32 = 50;
-    pub const CreateFee: u32 = 1000;
+    pub const CreateFee: u32 = 5;
 }
 
 impl frame_system::Config for Test {
@@ -85,8 +85,15 @@ impl pallet_balances::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default()
+    let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
-        .unwrap()
-        .into()
+        .unwrap();
+
+    pallet_balances::GenesisConfig::<Test> {
+        // Total issuance will be 200 with treasury account initialized at ED.
+        balances: vec![(0, 100), (1, 90008), (2, 1)],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+    t.into()
 }
