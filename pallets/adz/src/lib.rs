@@ -60,15 +60,20 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn adz_map)]
     pub(super) type Adz<T: Config> =
-        StorageMap<_, Blake2_128Concat, <T as frame_system::Config>::AccountId, Vec<Ad>>;
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u64, Ad>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn comment_map)]
+    pub(super) type Comments<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u64, Comment>;
 
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        UpdateAd(u32, T::AccountId),
-        CreateAd(u32, T::AccountId),
-        DeleteAd(u32, T::AccountId),
+        UpdateAd(T::AccountId, u64),
+        CreateAd(T::AccountId, u64),
+        DeleteAd(T::AccountId, u64),
     }
 
     #[pallet::error]
@@ -95,47 +100,40 @@ pub mod pallet {
             let pallet = ADZ_PALLET_ID.into_account();
             let fee = T::CreateFee::get();
             T::Currency::transfer(&sender, &pallet, fee, AllowDeath)?;
-            let mut ads = match <Adz<T>>::get(&sender) {
-                Some(inner) => inner,
-                None => Vec::new(),
-            };
-            let ads_len = ads.len() as u32;
-            ads.push(Ad {
+
+            let ad = Ad {
                 title,
                 body,
                 labels,
                 created: now,
                 comments: vec![],
-            });
-            <Adz<T>>::insert(&sender, ads);
-            Self::deposit_event(Event::CreateAd(ads_len, sender));
+            };
+            <Adz<T>>::insert(&sender, now, ad);
+            Self::deposit_event(Event::CreateAd(sender, now));
             Ok(())
         }
 
         #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
         pub fn update(
             origin: OriginFor<T>,
-            index: u8,
+            index: u64,
             title: Vec<u8>,
             body: Vec<u8>,
             labels: Vec<Vec<u8>>,
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            let mut ads = match <Adz<T>>::get(&sender) {
-                Some(inner) => inner,
-                None => Vec::new(),
-            };
-            match ads.get_mut(index as usize) {
-                Some(ad) => {
-                    *ad = Ad {
+            match <Adz<T>>::get(&sender, index) {
+                Some(_) => {
+                    let ad = Ad {
                         title,
                         body,
                         labels,
-                        created: ad.created,
-                        comments: ad.comments.clone(),
+                        created: index,
+                        comments: vec![],
                     };
-                    Self::deposit_event(Event::UpdateAd(index as u32, sender));
+                    <Adz<T>>::insert(&sender, index, ad);
+                    Self::deposit_event(Event::UpdateAd(sender, index));
                     Ok(())
                 }
                 None => Err(Error::<T>::InvalidIndex)?,
@@ -143,15 +141,11 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
-        pub fn delete(origin: OriginFor<T>, index: u8) -> DispatchResult {
+        pub fn delete(origin: OriginFor<T>, index: u64) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            let mut ads = match <Adz<T>>::get(&sender) {
-                Some(inner) => inner,
-                None => Vec::new(),
-            };
-            ads.remove(index as usize);
-            Self::deposit_event(Event::DeleteAd(index as u32, sender));
+            <Adz<T>>::remove(&sender, index);
+            Self::deposit_event(Event::DeleteAd(sender, index));
             Ok(())
         }
     }
