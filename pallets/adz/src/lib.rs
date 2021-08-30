@@ -109,7 +109,7 @@ pub mod pallet {
             // load the user's info
             let mut num_of_ads = <NumOfAds<T>>::get().unwrap();
             // get the time from the timestamp on the block
-            let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
+            let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // make the deposit
             let pallet = ADZ_PALLET_ID.into_account();
             let fee = T::CreateFee::get();
@@ -120,7 +120,7 @@ pub mod pallet {
                 title,
                 body,
                 labels,
-                created: now,
+                created,
                 num_of_comments: 0,
             };
             // increament the number of ads made
@@ -182,18 +182,18 @@ pub mod pallet {
         *****/
         #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
         pub fn create_comment(origin: OriginFor<T>, body: Vec<u8>, ad_id: u32) -> DispatchResult {
-            let sender = ensure_signed(origin)?;
+            let author = ensure_signed(origin)?;
             // get the time from the timestamp on the block
-            let now = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
+            let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // load the user's info
             let mut ad = match <Adz<T>>::get(ad_id) {
                 Some(ad) => ad,
                 None => Err(Error::<T>::InvalidIndex)?,
             };
             let comment = Comment {
-                author: sender,
+                author,
                 body,
-                created: now,
+                created,
             };
             <Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
             ad.num_of_comments += 1;
