@@ -52,6 +52,7 @@ pub mod pallet {
     #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
     pub struct Ad<T: Config> {
         author: T::AccountId,
+        selected_applicant: Option<T::AccountId>,
         title: Vec<u8>,
         body: Vec<u8>,
         labels: Vec<Vec<u8>>,
@@ -74,12 +75,13 @@ pub mod pallet {
 
     // Events
     #[pallet::event]
-    #[pallet::metadata(T::AccountId = "AccountId")]
+    #[pallet::metadata(t::accountid = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         UpdateAd(T::AccountId, u32),
         CreateAd(T::AccountId, u32),
         DeleteAd(T::AccountId, u32),
+        ApplicantSelected(T::AccountId, u32),
 
         UpdateComment(T::AccountId, u32),
         CreateComment(T::AccountId, u32),
@@ -117,6 +119,7 @@ pub mod pallet {
             // create the ad
             let ad = Ad {
                 author: sender.clone(),
+                selected_applicant: None,
                 title,
                 body,
                 labels,
@@ -168,6 +171,29 @@ pub mod pallet {
                     if original.author == sender {
                         <Adz<T>>::remove(index);
                         Self::deposit_event(Event::DeleteAd(sender, index));
+                        Ok(())
+                    } else {
+                        Err(Error::<T>::NotTheAuthor)?
+                    }
+                }
+                None => Err(Error::<T>::InvalidIndex)?,
+            }
+        }
+
+        #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
+        pub fn select_applicant(
+            origin: OriginFor<T>,
+            index: u32,
+            applicant: T::AccountId,
+        ) -> DispatchResult {
+            // Check that the extrinsic was signed and get the signer.
+            let sender = ensure_signed(origin)?;
+            match <Adz<T>>::get(index) {
+                Some(mut ad) => {
+                    if ad.author == sender {
+                        ad.selected_applicant = Some(applicant);
+                        <Adz<T>>::insert(index, ad);
+                        Self::deposit_event(Event::ApplicantSelected(sender, index));
                         Ok(())
                     } else {
                         Err(Error::<T>::NotTheAuthor)?
