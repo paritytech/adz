@@ -1,3 +1,9 @@
+# TLDR
+### build 
+`cargo build`
+### Run Local Chain
+`/target/debug/node-template --dev --tmp`
+
 ### Using Nix
 
 Install [nix](https://nixos.org/) and optionally [direnv](https://github.com/direnv/direnv) and [lorri](https://github.com/target/lorri) for a fully plug
