@@ -1,9 +1,10 @@
 # TLDR
-### build 
+### Build 
 `cargo build`
 ### Run Local Chain
 `/target/debug/node-template --dev --tmp`
 
+# Adz Demoe
 ### Using Nix
 
 Install [nix](https://nixos.org/) and optionally [direnv](https://github.com/direnv/direnv) and [lorri](https://github.com/target/lorri) for a fully plug
@@ -161,7 +162,7 @@ A FRAME pallet is compromised of a number of blockchain primitives:
 -   Dispatchables: FRAME pallets define special types of functions that can be invoked (dispatched)
     from outside of the runtime in order to update its state.
 -   Events: Substrate uses [events](https://substrate.dev/docs/en/knowledgebase/runtime/events) to
-    notify users of important changes in the runtime.
+    notify users of important changes in the runtime.b
 -   Errors: When a dispatchable fails, it returns an error.
 -   Config: The `Config` configuration interface is used to define the types and parameters upon
     which a FRAME pallet depends.
