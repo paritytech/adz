@@ -2,9 +2,9 @@
 ### Build 
 `cargo build`
 ### Run Local Chain
-`/target/debug/node-template --dev --tmp`
+`./target/debug/node-template --dev --tmp`
 ### Build Chain Spec
-`/target/debug/node-template build-spec`
+`./target/debug/node-template build-spec`
 
 # Adz Demoe
 ### Using Nix
