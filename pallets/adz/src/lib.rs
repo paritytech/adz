@@ -65,8 +65,13 @@ pub mod pallet {
     }
 
     // Storage
+    #[pallet::type_value]
+    pub(super) fn NumOfAdsDefault() -> u32 {
+        0
+    }
+
     #[pallet::storage]
-    pub(super) type NumOfAds<T> = StorageValue<_, u32>;
+    pub(super) type NumOfAds<T> = StorageValue<_, u32, ValueQuery, NumOfAdsDefault>;
     // an index between Tags and Ads
     #[pallet::storage]
     pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>>;
@@ -116,7 +121,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             // load the user's info
-            let mut num_of_ads = <NumOfAds<T>>::get().unwrap();
+            let mut num_of_ads = <NumOfAds<T>>::get();
             // get the time from the timestamp on the block
             let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // make the deposit
