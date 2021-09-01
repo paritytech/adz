@@ -11,6 +11,9 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+use sp_std::cmp::Ordering;
+use sp_std::prelude::*;
+
 #[frame_support::pallet]
 pub mod pallet {
     use codec::{Decode, Encode};
@@ -24,6 +27,7 @@ pub mod pallet {
     use pallet_timestamp as timestamp;
     use sp_arithmetic::traits::SaturatedConversion;
     use sp_runtime::traits::AccountIdConversion;
+    use sp_std::collections::{btree_map::*, btree_set::*};
     use sp_std::prelude::*;
 
     type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -55,7 +59,7 @@ pub mod pallet {
         selected_applicant: Option<T::AccountId>,
         title: Vec<u8>,
         body: Vec<u8>,
-        labels: Vec<Vec<u8>>,
+        tags: Vec<Vec<u8>>,
         created: u64,
         num_of_comments: u32,
     }
@@ -63,6 +67,9 @@ pub mod pallet {
     // Storage
     #[pallet::storage]
     pub(super) type NumOfAds<T> = StorageValue<_, u32>;
+    // an index between Tags and Ads
+    #[pallet::storage]
+    pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>>;
 
     #[pallet::storage]
     #[pallet::getter(fn adz_map)]
@@ -105,7 +112,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             title: Vec<u8>,
             body: Vec<u8>,
-            labels: Vec<Vec<u8>>,
+            tags: Vec<Vec<u8>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             // load the user's info
@@ -122,7 +129,7 @@ pub mod pallet {
                 selected_applicant: None,
                 title,
                 body,
-                labels,
+                tags,
                 created,
                 num_of_comments: 0,
             };
@@ -141,7 +148,7 @@ pub mod pallet {
             index: u32,
             title: Vec<u8>,
             body: Vec<u8>,
-            labels: Vec<Vec<u8>>,
+            tags: Vec<Vec<u8>>,
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
@@ -150,7 +157,7 @@ pub mod pallet {
                     if ad.author == sender {
                         ad.title = title;
                         ad.body = body;
-                        ad.labels = labels;
+                        ad.tags = tags;
                         <Adz<T>>::insert(index, ad);
                         Self::deposit_event(Event::UpdateAd(sender, index));
                         Ok(())
@@ -274,6 +281,20 @@ pub mod pallet {
             } else {
                 Err(Error::<T>::NotTheAuthor)?
             }
+        }
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    fn update_tags(ad_id: u32, old_tags: Vec<Vec<u8>>, new_tags: Vec<Vec<u8>>) {
+        let mut tags = <Tags<T>>::get().unwrap();
+        //remove old tags
+        for old_tag in old_tags.iter() {
+            tags.get_mut(old_tag).unwrap().remove(&ad_id);
+        }
+        // ad new tags
+        for new_tag in new_tags.iter() {
+            tags.get_mut(new_tag).unwrap().insert(ad_id);
         }
     }
 }
