@@ -11,7 +11,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use sp_std::cmp::Ordering;
 use sp_std::prelude::*;
 
 #[frame_support::pallet]
@@ -57,7 +56,7 @@ pub mod pallet {
     pub struct Ad<T: Config> {
         author: T::AccountId,
         selected_applicant: Option<T::AccountId>,
-        title: Vec<u8>,
+        pub title: Vec<u8>,
         body: Vec<u8>,
         tags: Vec<Vec<u8>>,
         created: u64,
@@ -74,11 +73,11 @@ pub mod pallet {
     pub(super) type NumOfAds<T> = StorageValue<_, u32, ValueQuery, NumOfAdsDefault>;
     // an index between Tags and Ads
     #[pallet::storage]
-    pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>>;
+    pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn adz_map)]
-    pub(super) type Adz<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
+    pub(super) type AdzMap<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn comment_map)]
@@ -120,7 +119,6 @@ pub mod pallet {
             tags: Vec<Vec<u8>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-            // load the user's info
             let mut num_of_ads = <NumOfAds<T>>::get();
             // get the time from the timestamp on the block
             let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
@@ -139,9 +137,9 @@ pub mod pallet {
                 num_of_comments: 0,
             };
             // increament the number of ads made
+            <AdzMap<T>>::insert(num_of_ads, ad);
             num_of_ads += 1;
             <NumOfAds<T>>::put(num_of_ads);
-            <Adz<T>>::insert(num_of_ads, ad);
 
             Self::deposit_event(Event::CreateAd(sender, num_of_ads));
             Ok(())
@@ -157,13 +155,12 @@ pub mod pallet {
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            match <Adz<T>>::get(index) {
-                Some(mut ad) => {
+            <AdzMap<T>>::mutate(index, |ad| match ad {
+                Some(ad) => {
                     if ad.author == sender {
                         ad.title = title;
                         ad.body = body;
                         ad.tags = tags;
-                        <Adz<T>>::insert(index, ad);
                         Self::deposit_event(Event::UpdateAd(sender, index));
                         Ok(())
                     } else {
@@ -171,17 +168,17 @@ pub mod pallet {
                     }
                 }
                 None => Err(Error::<T>::InvalidIndex)?,
-            }
+            })
         }
 
         #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
         pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            match <Adz<T>>::get(index) {
+            match <AdzMap<T>>::get(index) {
                 Some(original) => {
                     if original.author == sender {
-                        <Adz<T>>::remove(index);
+                        <AdzMap<T>>::remove(index);
                         Self::deposit_event(Event::DeleteAd(sender, index));
                         Ok(())
                     } else {
@@ -200,11 +197,11 @@ pub mod pallet {
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            match <Adz<T>>::get(index) {
+            match <AdzMap<T>>::get(index) {
                 Some(mut ad) => {
                     if ad.author == sender {
                         ad.selected_applicant = Some(applicant);
-                        <Adz<T>>::insert(index, ad);
+                        <AdzMap<T>>::insert(index, ad);
                         Self::deposit_event(Event::ApplicantSelected(sender, index));
                         Ok(())
                     } else {
@@ -224,7 +221,7 @@ pub mod pallet {
             // get the time from the timestamp on the block
             let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // load the user's info
-            let mut ad = match <Adz<T>>::get(ad_id) {
+            let mut ad = match <AdzMap<T>>::get(ad_id) {
                 Some(ad) => ad,
                 None => Err(Error::<T>::InvalidIndex)?,
             };
@@ -235,7 +232,7 @@ pub mod pallet {
             };
             <Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
             ad.num_of_comments += 1;
-            <Adz<T>>::insert(ad_id, ad);
+            <AdzMap<T>>::insert(ad_id, ad);
             Ok(())
         }
 
@@ -248,7 +245,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             // load the ad's info
-            let mut ad = match <Adz<T>>::get(ad_id) {
+            let mut ad = match <AdzMap<T>>::get(ad_id) {
                 Some(ad) => ad,
                 None => Err(Error::<T>::InvalidIndex)?,
             };
@@ -262,7 +259,7 @@ pub mod pallet {
                 comment.body = body;
                 <Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
                 ad.num_of_comments += 1;
-                <Adz<T>>::insert(ad_id, ad);
+                <AdzMap<T>>::insert(ad_id, ad);
                 Ok(())
             } else {
                 Err(Error::<T>::NotTheAuthor)?
@@ -292,14 +289,15 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
     fn update_tags(ad_id: u32, old_tags: Vec<Vec<u8>>, new_tags: Vec<Vec<u8>>) {
-        let mut tags = <Tags<T>>::get().unwrap();
-        //remove old tags
-        for old_tag in old_tags.iter() {
-            tags.get_mut(old_tag).unwrap().remove(&ad_id);
-        }
-        // ad new tags
-        for new_tag in new_tags.iter() {
-            tags.get_mut(new_tag).unwrap().insert(ad_id);
-        }
+        <Tags<T>>::mutate(|tags| {
+            //remove old tags
+            for old_tag in old_tags.iter() {
+                tags.get_mut(old_tag).unwrap().remove(&ad_id);
+            }
+            // // ad new tags
+            for new_tag in new_tags.iter() {
+                tags.get_mut(new_tag).unwrap().insert(ad_id);
+            }
+        });
     }
 }

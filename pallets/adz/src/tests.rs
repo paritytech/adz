@@ -1,5 +1,7 @@
-use crate::{mock::*, Error};
-use frame_support::{assert_noop, assert_ok};
+use super::*;
+use crate::mock::*;
+
+use frame_support::assert_ok;
 
 #[test]
 fn create_an_ad() {
@@ -11,6 +13,8 @@ fn create_an_ad() {
             "test".as_bytes().to_vec(),
             vec!["test".as_bytes().to_vec()]
         ));
+        let ad = AdzMap::<Test>::get(0).unwrap();
+        assert_eq!(ad.title, "test".as_bytes().to_vec())
     });
 }
 
