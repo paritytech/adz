@@ -76,11 +76,11 @@ pub mod pallet {
     pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn adz_map)]
-    pub(super) type AdzMap<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
+    #[pallet::getter(fn ads)]
+    pub(super) type Ads<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn comment_map)]
+    #[pallet::getter(fn comments)]
     pub(super) type Comments<T: Config> =
         StorageDoubleMap<_, Identity, u32, Identity, u32, Comment<T>>;
 
@@ -137,7 +137,7 @@ pub mod pallet {
                 num_of_comments: 0,
             };
             // increament the number of ads made
-            <AdzMap<T>>::insert(num_of_ads, ad);
+            <Ads<T>>::insert(num_of_ads, ad);
             num_of_ads += 1;
             <NumOfAds<T>>::put(num_of_ads);
 
@@ -155,7 +155,7 @@ pub mod pallet {
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            <AdzMap<T>>::mutate(index, |ad| match ad {
+            <Ads<T>>::mutate(index, |ad| match ad {
                 Some(ad) => {
                     if ad.author == sender {
                         ad.title = title;
@@ -175,10 +175,10 @@ pub mod pallet {
         pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            match <AdzMap<T>>::get(index) {
+            match <Ads<T>>::get(index) {
                 Some(original) => {
                     if original.author == sender {
-                        <AdzMap<T>>::remove(index);
+                        <Ads<T>>::remove(index);
                         Self::deposit_event(Event::DeleteAd(sender, index));
                         Ok(())
                     } else {
@@ -197,11 +197,11 @@ pub mod pallet {
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             let sender = ensure_signed(origin)?;
-            match <AdzMap<T>>::get(index) {
+            match <Ads<T>>::get(index) {
                 Some(mut ad) => {
                     if ad.author == sender {
                         ad.selected_applicant = Some(applicant);
-                        <AdzMap<T>>::insert(index, ad);
+                        <Ads<T>>::insert(index, ad);
                         Self::deposit_event(Event::ApplicantSelected(sender, index));
                         Ok(())
                     } else {
@@ -221,7 +221,7 @@ pub mod pallet {
             // get the time from the timestamp on the block
             let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
             // load the user's info
-            let mut ad = match <AdzMap<T>>::get(ad_id) {
+            let mut ad = match <Ads<T>>::get(ad_id) {
                 Some(ad) => ad,
                 None => Err(Error::<T>::InvalidIndex)?,
             };
@@ -232,7 +232,7 @@ pub mod pallet {
             };
             <Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
             ad.num_of_comments += 1;
-            <AdzMap<T>>::insert(ad_id, ad);
+            <Ads<T>>::insert(ad_id, ad);
             Ok(())
         }
 
@@ -245,7 +245,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
             // load the ad's info
-            let mut ad = match <AdzMap<T>>::get(ad_id) {
+            let mut ad = match <Ads<T>>::get(ad_id) {
                 Some(ad) => ad,
                 None => Err(Error::<T>::InvalidIndex)?,
             };
@@ -259,7 +259,7 @@ pub mod pallet {
                 comment.body = body;
                 <Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
                 ad.num_of_comments += 1;
-                <AdzMap<T>>::insert(ad_id, ad);
+                <Ads<T>>::insert(ad_id, ad);
                 Ok(())
             } else {
                 Err(Error::<T>::NotTheAuthor)?

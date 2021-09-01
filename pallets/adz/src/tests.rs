@@ -13,7 +13,7 @@ fn create_an_ad() {
             "test".as_bytes().to_vec(),
             vec!["test".as_bytes().to_vec()]
         ));
-        let ad = AdzMap::<Test>::get(0).unwrap();
+        let ad = Ads::<Test>::get(0).unwrap();
         assert_eq!(ad.title, "test".as_bytes().to_vec())
     });
 }
