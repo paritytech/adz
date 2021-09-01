@@ -54,13 +54,13 @@ pub mod pallet {
 
     #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
     pub struct Ad<T: Config> {
-        author: T::AccountId,
-        selected_applicant: Option<T::AccountId>,
+        pub author: T::AccountId,
+        pub selected_applicant: Option<T::AccountId>,
         pub title: Vec<u8>,
-        body: Vec<u8>,
-        tags: Vec<Vec<u8>>,
-        created: u64,
-        num_of_comments: u32,
+        pub body: Vec<u8>,
+        pub tags: Vec<Vec<u8>>,
+        pub created: u64,
+        pub num_of_comments: u32,
     }
 
     // Storage
