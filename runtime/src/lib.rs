@@ -53,8 +53,8 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-/// Import the template pallet.
-pub use template;
+/// Import the adz pallet.
+pub use pallet_adz;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -366,6 +366,7 @@ parameter_types! {
 	pub UnitWeightCost: Weight = 1_000_000;
 	// One UNIT buys 1 second of weight.
 	pub const WeightPrice: (MultiLocation, u128) = (X1(Parent), UNIT);
+	pub const CreateFee: u32 = 1000;
 }
 
 match_type! {
@@ -444,9 +445,11 @@ impl pallet_aura::Config for Runtime {
 	type DisabledValidators = ();
 }
 
-/// Configure the pallet template in pallets/template.
-impl template::Config for Runtime {
+/// Configure the pallet-adz in pallets/adz.
+impl pallet_adz::Config for Runtime {
 	type Event = Event;
+	type CreateFee = CreateFee;
+	type Currency = Balances;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -477,8 +480,8 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 53,
 
-		//Template
-		TemplatePallet: template::{Pallet, Call, Storage, Event<T>},
+		//Adz pallet
+		Adz: pallet_adz::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

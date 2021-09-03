@@ -76,11 +76,10 @@ pub mod pallet {
     pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn ads)]
     pub(super) type Ads<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn comments)]
+    #[pallet::getter(fn comments_getter)]
     pub(super) type Comments<T: Config> =
         StorageDoubleMap<_, Identity, u32, Identity, u32, Comment<T>>;
 

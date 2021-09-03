@@ -49,5 +49,38 @@ fn update_an_ad() {
             "test2".as_bytes().to_vec(),
             vec!["test2".as_bytes().to_vec()]
         ));
+
+        let ad = Ads::<Test>::get(0).unwrap();
+        assert_eq!(
+            ad,
+            Ad {
+                num_of_comments: 0,
+                author: 1,
+                selected_applicant: None,
+                created: 0,
+                title: "test2".as_bytes().to_vec(),
+                body: "test2".as_bytes().to_vec(),
+                tags: vec!["test2".as_bytes().to_vec()],
+            }
+        );
+    });
+}
+
+#[test]
+fn create_an_comment() {
+    new_test_ext().execute_with(|| {
+        // Dispatch a signed extrinsic.
+        assert_ok!(Adz::create_ad(
+            Origin::signed(1),
+            "test".as_bytes().to_vec(),
+            "test".as_bytes().to_vec(),
+            vec!["test".as_bytes().to_vec()]
+        ));
+
+        assert_ok!(Adz::create_comment(
+            Origin::signed(1),
+            "test".as_bytes().to_vec(),
+            0
+        ));
     });
 }

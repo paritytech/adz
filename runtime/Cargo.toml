@@ -19,7 +19,7 @@ log = { version = "0.4.14", default-features = false }
 serde = { version = '1.0.119', optional = true, features = ['derive'] }
 
 # Local Dependencies
-template = { package = 'pallet-template', path = '../pallets/template', default-features = false }
+pallet-adz = { path = '../pallets/adz', default-features = false, version = '3.0.0' }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -81,7 +81,7 @@ runtime-benchmarks = [
 	'frame-system/runtime-benchmarks',
 	'pallet-balances/runtime-benchmarks',
 	'pallet-timestamp/runtime-benchmarks',
-	'template/runtime-benchmarks',
+	'pallet-adz/runtime-benchmarks',
 ]
 std = [
 	"codec/std",
@@ -107,6 +107,7 @@ std = [
 	"pallet-sudo/std",
 	"pallet-transaction-payment/std",
 	"parachain-info/std",
+	'pallet-adz/std',
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcmp-queue/std",
@@ -119,5 +120,4 @@ std = [
 	"xcm-executor/std",
 	"pallet-aura/std",
 	"sp-consensus-aura/std",
-	'template/std',
 ]
