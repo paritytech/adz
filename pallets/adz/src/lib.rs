@@ -22,6 +22,7 @@ pub mod pallet {
 		traits::{Currency, ExistenceRequirement::AllowDeath},
 		PalletId,
 	};
+	use frame_system::pallet_prelude::OriginFor;
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use sp_arithmetic::traits::SaturatedConversion;
@@ -105,6 +106,41 @@ pub mod pallet {
 		NotTheAuthor,
 	}
 
+	pub trait HasAuthor<T: Config> {
+		fn get_author(&self) -> &T::AccountId;
+	}
+
+	#[macro_export]
+	macro_rules! impl_get_author {
+	    ($($t:ty),+ $(,)?) => ($(
+	        impl<T: Config> HasAuthor<T> for $t {
+                    fn get_author(&self) -> &T::AccountId {
+                            &self.author
+                    }
+                }
+	    )+)
+	}
+
+	impl_get_author!(Comment<T>, Ad<T>);
+	fn check_author<T: Config, I: HasAuthor<T>>(
+		origin: OriginFor<T>,
+		item: &mut Option<I>,
+		f: impl FnOnce(&mut I, T::AccountId),
+	) -> DispatchResult {
+		let sender = ensure_signed(origin)?;
+		match item {
+			Some(ad) => {
+				if *ad.get_author() == sender {
+					f(ad, sender);
+					Ok(())
+				} else {
+					Err(Error::<T>::NotTheAuthor)?
+				}
+			}
+			None => Err(Error::<T>::InvalidIndex)?,
+		}
+	}
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -151,39 +187,24 @@ pub mod pallet {
 			body: Vec<u8>,
 			tags: Vec<Vec<u8>>,
 		) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			let sender = ensure_signed(origin)?;
-			<Ads<T>>::mutate(index, |ad| match ad {
-				Some(ad) => {
-					if ad.author == sender {
-						ad.title = title;
-						ad.body = body;
-						ad.tags = tags;
-						Self::deposit_event(Event::UpdateAd(sender, index));
-						Ok(())
-					} else {
-						Err(Error::<T>::NotTheAuthor)?
-					}
-				}
-				None => Err(Error::<T>::InvalidIndex)?,
+			<Ads<T>>::mutate(index, |ad_op| {
+				check_author(origin, ad_op, |ad, sender| {
+					ad.title = title;
+					ad.body = body;
+					ad.tags = tags;
+					Self::deposit_event(Event::UpdateAd(sender, index));
+				})
 			})
 		}
 
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			let sender = ensure_signed(origin)?;
-			<Ads<T>>::try_mutate_exists(index, |ad| match ad {
-				Some(original) => {
-					if original.author == sender {
-						Self::deposit_event(Event::DeleteAd(sender, index));
-						*ad = None;
-						Ok(())
-					} else {
-						Err(Error::<T>::NotTheAuthor)?
-					}
-				}
-				None => Err(Error::<T>::InvalidIndex)?,
+			<Ads<T>>::try_mutate_exists(index, |ad_op| {
+				check_author(origin, ad_op, |_, sender| {
+					Self::deposit_event(Event::DeleteAd(sender, index));
+				})?;
+				*ad_op = None;
+				Ok(())
 			})
 		}
 
@@ -194,18 +215,11 @@ pub mod pallet {
 			applicant: T::AccountId,
 		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
-			let sender = ensure_signed(origin)?;
-			<Ads<T>>::try_mutate(index, |ad| match ad {
-				Some(ad) => {
-					if ad.author == sender {
-						ad.selected_applicant = Some(applicant);
-						Self::deposit_event(Event::ApplicantSelected(sender, index));
-						Ok(())
-					} else {
-						Err(Error::<T>::NotTheAuthor)?
-					}
-				}
-				None => Err(Error::<T>::InvalidIndex)?,
+			<Ads<T>>::try_mutate(index, |ad_op| {
+				check_author(origin, ad_op, |ad, sender| {
+					ad.selected_applicant = Some(applicant);
+					Self::deposit_event(Event::ApplicantSelected(sender, index));
+				})
 			})
 		}
 
@@ -218,7 +232,7 @@ pub mod pallet {
 			// get the time from the timestamp on the block
 			let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
 			// load the user's info
-			<Ads<T>>::try_mutate(ad_id, |ad| match ad {
+			<Ads<T>>::try_mutate(ad_id, |ad_op| match ad_op {
 				Some(ad) => {
 					let comment = Comment { author, body, created };
 					<Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
@@ -236,41 +250,19 @@ pub mod pallet {
 			comment_id: u32,
 			body: Vec<u8>,
 		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-			// load the ad's info
-			let ad = match <Ads<T>>::get(ad_id) {
-				Some(ad) => ad,
-				None => Err(Error::<T>::InvalidIndex)?,
-			};
-			<Comments<T>>::try_mutate(ad_id, comment_id, |comment| match comment {
-				Some(comment) => {
-					if comment.author == sender {
-						comment.body = body;
-						Ok(())
-					} else {
-						Err(Error::<T>::NotTheAuthor)?
-					}
-				}
-				None => Err(Error::<T>::InvalidIndex)?,
+			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |c| {
+				check_author(origin, c, |comment, _| {
+					comment.body = body;
+				})
 			})
 		}
 
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_comment(origin: OriginFor<T>, ad_id: u32, comment_id: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			let sender = ensure_signed(origin)?;
-
-			// load the ad's info
-			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| match comment {
-				Some(c) => {
-					if c.author == sender {
-						*comment = None;
-						Ok(())
-					} else {
-						Err(Error::<T>::NotTheAuthor)?
-					}
-				}
-				None => Err(Error::<T>::InvalidIndex)?,
+			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| {
+				check_author(origin, comment, |_, _| {})?;
+				*comment = None;
+				Ok(())
 			})
 		}
 	}
