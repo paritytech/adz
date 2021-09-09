@@ -94,9 +94,9 @@ pub mod pallet {
 		DeleteAd(T::AccountId, u32),
 		ApplicantSelected(T::AccountId, u32),
 
-		UpdateComment(T::AccountId, u32),
-		CreateComment(T::AccountId, u32),
-		DeleteComment(T::AccountId, u32),
+		UpdateComment(T::AccountId, u32, u32),
+		CreateComment(T::AccountId, u32, u32),
+		DeleteComment(T::AccountId, u32, u32),
 	}
 
 	// Errors
@@ -127,11 +127,11 @@ pub mod pallet {
 		item: &mut Option<I>,
 		f: impl FnOnce(&mut I, T::AccountId),
 	) -> DispatchResult {
-		let sender = ensure_signed(origin)?;
+		let author = ensure_signed(origin)?;
 		match item {
 			Some(ad) => {
-				if *ad.get_author() == sender {
-					f(ad, sender);
+				if *ad.get_author() == author {
+					f(ad, author);
 					Ok(())
 				} else {
 					Err(Error::<T>::NotTheAuthor)?
@@ -153,16 +153,16 @@ pub mod pallet {
 			body: Vec<u8>,
 			tags: Vec<Vec<u8>>,
 		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
+			let author = ensure_signed(origin)?;
 			// get the time from the timestamp on the block
 			let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
 			// make the deposit
 			let pallet = ADZ_PALLET_ID.into_account();
 			let fee = T::CreateFee::get();
-			T::Currency::transfer(&sender, &pallet, fee, AllowDeath)?;
+			T::Currency::transfer(&author, &pallet, fee, AllowDeath)?;
 			// create the ad
 			let ad = Ad {
-				author: sender.clone(),
+				author: author.clone(),
 				selected_applicant: None,
 				title,
 				body,
@@ -172,7 +172,7 @@ pub mod pallet {
 			};
 			<NumOfAds<T>>::mutate(|num_of_ads| {
 				<Ads<T>>::insert(*num_of_ads, ad);
-				Self::deposit_event(Event::CreateAd(sender, *num_of_ads));
+				Self::deposit_event(Event::CreateAd(author, *num_of_ads));
 				// increament the number of ads made
 				*num_of_ads += 1;
 				Ok(())
@@ -188,11 +188,11 @@ pub mod pallet {
 			tags: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			<Ads<T>>::mutate(index, |ad_op| {
-				check_author(origin, ad_op, |ad, sender| {
+				check_author(origin, ad_op, |ad, author| {
 					ad.title = title;
 					ad.body = body;
 					ad.tags = tags;
-					Self::deposit_event(Event::UpdateAd(sender, index));
+					Self::deposit_event(Event::UpdateAd(author, index));
 				})
 			})
 		}
@@ -200,8 +200,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
 			<Ads<T>>::try_mutate_exists(index, |ad_op| {
-				check_author(origin, ad_op, |_, sender| {
-					Self::deposit_event(Event::DeleteAd(sender, index));
+				check_author(origin, ad_op, |_, author| {
+					Self::deposit_event(Event::DeleteAd(author, index));
 				})?;
 				*ad_op = None;
 				Ok(())
@@ -216,9 +216,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			<Ads<T>>::try_mutate(index, |ad_op| {
-				check_author(origin, ad_op, |ad, sender| {
+				check_author(origin, ad_op, |ad, author| {
 					ad.selected_applicant = Some(applicant);
-					Self::deposit_event(Event::ApplicantSelected(sender, index));
+					Self::deposit_event(Event::ApplicantSelected(author, index));
 				})
 			})
 		}
@@ -234,8 +234,9 @@ pub mod pallet {
 			// load the user's info
 			<Ads<T>>::try_mutate(ad_id, |ad_op| match ad_op {
 				Some(ad) => {
-					let comment = Comment { author, body, created };
+					let comment = Comment { author: author.clone(), body, created };
 					<Comments<T>>::insert(ad_id, ad.num_of_comments, comment);
+					Self::deposit_event(Event::CreateComment(author, ad_id, ad.num_of_comments));
 					ad.num_of_comments += 1;
 					Ok(())
 				}
@@ -251,8 +252,9 @@ pub mod pallet {
 			body: Vec<u8>,
 		) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |c| {
-				check_author(origin, c, |comment, _| {
+				check_author(origin, c, |comment, author| {
 					comment.body = body;
+					Self::deposit_event(Event::UpdateComment(author, ad_id, comment_id));
 				})
 			})
 		}
@@ -260,7 +262,9 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_comment(origin: OriginFor<T>, ad_id: u32, comment_id: u32) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| {
-				check_author(origin, comment, |_, _| {})?;
+				check_author(origin, comment, |_, author| {
+					Self::deposit_event(Event::DeleteComment(author, ad_id, comment_id));
+				})?;
 				*comment = None;
 				Ok(())
 			})
