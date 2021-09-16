@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![feature(map_try_insert)]
 
 pub use pallet::*;
 
@@ -11,6 +12,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+use sp_std::collections::{btree_map::*, btree_set::*};
 use sp_std::prelude::*;
 
 #[frame_support::pallet]
@@ -122,6 +124,7 @@ pub mod pallet {
 	}
 
 	impl_get_author!(Comment<T>, Ad<T>);
+
 	fn check_author<T: Config, I: HasAuthor<T>>(
 		origin: OriginFor<T>,
 		item: &mut Option<I>,
@@ -166,12 +169,13 @@ pub mod pallet {
 				selected_applicant: None,
 				title,
 				body,
-				tags,
+				tags: tags.clone(),
 				created,
 				num_of_comments: 0,
 			};
 			<NumOfAds<T>>::mutate(|num_of_ads| {
 				<Ads<T>>::insert(*num_of_ads, ad);
+				Self::update_tags(*num_of_ads, vec![], tags);
 				Self::deposit_event(Event::CreateAd(author, *num_of_ads));
 				// increament the number of ads made
 				*num_of_ads += 1;
@@ -189,6 +193,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			<Ads<T>>::mutate(index, |ad_op| {
 				check_author(origin, ad_op, |ad, author| {
+					Self::update_tags(index, ad.tags.clone(), tags.clone());
 					ad.title = title;
 					ad.body = body;
 					ad.tags = tags;
@@ -200,7 +205,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
 			<Ads<T>>::try_mutate_exists(index, |ad_op| {
-				check_author(origin, ad_op, |_, author| {
+				check_author(origin, ad_op, |ad, author| {
+					Self::update_tags(index, ad.tags.clone(), vec![]);
 					Self::deposit_event(Event::DeleteAd(author, index));
 				})?;
 				*ad_op = None;
@@ -272,16 +278,27 @@ pub mod pallet {
 	}
 }
 
+fn get_set<'a>(
+	map: &'a mut BTreeMap<Vec<u8>, BTreeSet<u32>>,
+	key: &Vec<u8>,
+) -> &'a mut BTreeSet<u32> {
+	if map.contains_key(key) {
+		map.get_mut(key).unwrap()
+	} else {
+		map.try_insert(key.to_vec(), BTreeSet::new()).unwrap()
+	}
+}
+
 impl<T: Config> Pallet<T> {
 	fn update_tags(ad_id: u32, old_tags: Vec<Vec<u8>>, new_tags: Vec<Vec<u8>>) {
 		<Tags<T>>::mutate(|tags| {
 			//remove old tags
 			for old_tag in old_tags.iter() {
-				tags.get_mut(old_tag).unwrap().remove(&ad_id);
+				get_set(tags, old_tag).remove(&ad_id);
 			}
 			// // ad new tags
 			for new_tag in new_tags.iter() {
-				tags.get_mut(new_tag).unwrap().insert(ad_id);
+				get_set(tags, new_tag).insert(ad_id);
 			}
 		});
 	}
