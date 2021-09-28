@@ -13,7 +13,7 @@ mod tests;
 mod benchmarking;
 
 use sp_std::collections::{btree_map::*, btree_set::*};
-use sp_std::prelude::*;
+use sp_std::prelude::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -24,13 +24,14 @@ pub mod pallet {
 		traits::{Currency, ExistenceRequirement::AllowDeath},
 		PalletId,
 	};
-	use frame_system::pallet_prelude::OriginFor;
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use sp_arithmetic::traits::SaturatedConversion;
 	use sp_runtime::traits::AccountIdConversion;
-	use sp_std::collections::{btree_map::*, btree_set::*};
-	use sp_std::prelude::*;
+	use sp_std::{
+		collections::{btree_map::*, btree_set::*},
+		prelude::*,
+	};
 
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
@@ -48,14 +49,14 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
+	#[derive(Encode, Decode, PartialEq, RuntimeDebug)]
 	pub struct Comment<T: Config> {
 		author: T::AccountId,
 		body: Vec<u8>,
 		created: u64,
 	}
 
-	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, Default)]
+	#[derive(Encode, Decode, PartialEq, RuntimeDebug)]
 	pub struct Ad<T: Config> {
 		pub author: T::AccountId,
 		pub selected_applicant: Option<T::AccountId>,
@@ -74,6 +75,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub(super) type NumOfAds<T> = StorageValue<_, u32, ValueQuery, NumOfAdsDefault>;
+
 	// an index between Tags and Ads
 	#[pallet::storage]
 	pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>, ValueQuery>;
@@ -94,11 +96,12 @@ pub mod pallet {
 		UpdateAd(T::AccountId, u32),
 		CreateAd(T::AccountId, u32),
 		DeleteAd(T::AccountId, u32),
-		ApplicantSelected(T::AccountId, u32),
 
 		UpdateComment(T::AccountId, u32, u32),
 		CreateComment(T::AccountId, u32, u32),
 		DeleteComment(T::AccountId, u32, u32),
+
+		ApplicantSelected(T::AccountId, u32),
 	}
 
 	// Errors
@@ -294,9 +297,13 @@ impl<T: Config> Pallet<T> {
 		<Tags<T>>::mutate(|tags| {
 			//remove old tags
 			for old_tag in old_tags.iter() {
-				get_set(tags, old_tag).remove(&ad_id);
+				let tag_set = get_set(tags, old_tag);
+				tag_set.remove(&ad_id);
+				if tag_set.is_empty() {
+					tags.remove(old_tag);
+				}
 			}
-			// // ad new tags
+			// ad new tags
 			for new_tag in new_tags.iter() {
 				get_set(tags, new_tag).insert(ad_id);
 			}
