@@ -361,6 +361,7 @@ parameter_types! {
 	pub UnitWeightCost: Weight = 1_000_000;
 	// One UNIT buys 1 second of weight.
 	pub const WeightPrice: (MultiLocation, u128) = (MultiLocation::parent(), UNIT);
+	pub const CreateFee: u32 = 1000;
 }
 
 match_type! {
