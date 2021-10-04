@@ -1,9 +1,10 @@
 use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
 use parachain_runtime::{AccountId, AuraId, Signature};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
@@ -118,6 +119,59 @@ pub fn local_testnet_config(id: ParaId) -> ChainSpec {
 		None,
 		Extensions {
 			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			para_id: id.into(),
+		},
+	)
+}
+
+pub fn adz_westend(id: ParaId) -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "UNIT".into());
+	properties.insert("tokenDecimals".into(), 12.into());
+
+	ChainSpec::from_genesis(
+		// Name
+		"Adz Westend",
+		// ID
+		"adz_westend",
+		ChainType::Live,
+		move || {
+			testnet_genesis(
+				//5H8UXihvYfKtvBJpJS4cfKsAFMhz4UWZ6MnXE5H2bWtT9u8Y
+				hex!["e00d4985a0ef8c7821a50fcdeb2d5cd4f0874c11bc00532157fcac6400b49073"].into(),
+				vec![
+					//5H8UXihvYfKtvBJpJS4cfKsAFMhz4UWZ6MnXE5H2bWtT9u8Y
+					hex!["e00d4985a0ef8c7821a50fcdeb2d5cd4f0874c11bc00532157fcac6400b49073"]
+						.unchecked_into(),
+					//5DFZTiTdxdAryHZWqvgMWUiJS7sR9gv4NedEUb3jbp7jkyvt
+					hex!["3483ab996159563de167108bb2a8ada82c2ce0eb0c646b84d7d5c39cbc250a21"]
+						.unchecked_into(),
+					//5Fe1YwRXbQCedQiJthYnCkzH9DjLh3iJyzkMM19J3rXKM6gF
+					hex!["9e1b5cf30f2bf5c8898f51e6448c4f71bd66467e4aa238d7ecb63313c920d12c"]
+						.unchecked_into(),
+					//5H3oaf1fvjuqAYNjhsxNKadYrD4u84cNftmThmqwTvT7kWev
+					hex!["dc7d30b75350f50c6c144c2329a73e623b9ad159fa5904f3ebca944daf17905b"]
+						.unchecked_into(),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Angelspit"),
+					get_account_id_from_seed::<sr25519::Public>("Choking Victim"),
+					get_account_id_from_seed::<sr25519::Public>("White Ward"),
+					get_account_id_from_seed::<sr25519::Public>("Android Lust"),
+					get_account_id_from_seed::<sr25519::Public>("Zhine"),
+				],
+				id,
+			)
+		},
+		Vec::new(),
+		None,
+		None,
+		None,
+		Extensions {
+			relay_chain: "westend".into(), // You MUST set this to the correct network!
 			para_id: id.into(),
 		},
 	)
