@@ -227,10 +227,22 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			<Ads<T>>::try_mutate(index, |ad_op| {
-				check_author(origin, ad_op, |ad, author| {
-					ad.selected_applicant = Some(applicant);
-					Self::deposit_event(Event::ApplicantSelected(author, index));
-				})
+				let author = ensure_signed(origin)?;
+				let pallet = ADZ_PALLET_ID.into_account();
+				let fee = T::CreateFee::get();
+				T::Currency::transfer(&pallet, &author, fee, AllowDeath)?;
+				match ad_op {
+					Some(ad) => {
+						if *ad.get_author() == author {
+							ad.selected_applicant = Some(applicant);
+							Self::deposit_event(Event::ApplicantSelected(author, index));
+							Ok(())
+						} else {
+							Err(Error::<T>::NotTheAuthor)?
+						}
+					}
+					None => Err(Error::<T>::InvalidIndex)?,
+				}
 			})
 		}
 
