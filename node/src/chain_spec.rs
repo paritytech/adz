@@ -141,17 +141,16 @@ pub fn adz_westend(id: ParaId) -> ChainSpec {
 				//5H8UXihvYfKtvBJpJS4cfKsAFMhz4UWZ6MnXE5H2bWtT9u8Y
 				hex!["e00d4985a0ef8c7821a50fcdeb2d5cd4f0874c11bc00532157fcac6400b49073"].into(),
 				vec![
-					//5H8UXihvYfKtvBJpJS4cfKsAFMhz4UWZ6MnXE5H2bWtT9u8Y
-					hex!["e00d4985a0ef8c7821a50fcdeb2d5cd4f0874c11bc00532157fcac6400b49073"]
+					//5FW42aqrsnDPmTsrjVC1BfA8RLurURE8CmsSSeqLsTh1PGah
+					hex!["9809bca9bafffacc2fccb3884afb6e3d2b96187d03a39fd8807e34dc9bd4d277"]
 						.unchecked_into(),
-					//5DFZTiTdxdAryHZWqvgMWUiJS7sR9gv4NedEUb3jbp7jkyvt
-					hex!["3483ab996159563de167108bb2a8ada82c2ce0eb0c646b84d7d5c39cbc250a21"]
+					//5EZ4MwVEaebH1GvvEWjVEp3n7CwYLSNewMxF5ePirqY255g8
+					hex!["6e185cf68b2fb6947b8645a5b73081e5ca03ce2ce1bc31ac2d2cc352cfc52b6c"]
 						.unchecked_into(),
-					//5Fe1YwRXbQCedQiJthYnCkzH9DjLh3iJyzkMM19J3rXKM6gF
-					hex!["9e1b5cf30f2bf5c8898f51e6448c4f71bd66467e4aa238d7ecb63313c920d12c"]
-						.unchecked_into(),
-					//5H3oaf1fvjuqAYNjhsxNKadYrD4u84cNftmThmqwTvT7kWev
-					hex!["dc7d30b75350f50c6c144c2329a73e623b9ad159fa5904f3ebca944daf17905b"]
+					//5GsyP8HwkvKYoyYbPwjcR88KLKtobzHuV5cMB8qg23YtKBck
+					hex!["d4fdbae660fc34a80927ef4d5e099bec2b7241ff7c8bde51edd65542cce33a7c"]
+						.unchecked_into(), //5EqnP2zoBgJQRnragZ59oPid1xWebNWegzChm8MeKMyVRp6a
+					hex!["7ad9bcde098a69b9f3c291e2d4d016e9f7d98c7614479244440f96f4f6b5be47"]
 						.unchecked_into(),
 				],
 				vec![
