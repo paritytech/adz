@@ -133,19 +133,17 @@ pub mod pallet {
 	fn check_author<T: Config, I: HasAuthor<T>>(
 		origin: OriginFor<T>,
 		item: &mut Option<I>,
-		f: impl FnOnce(&mut I, T::AccountId),
-	) -> DispatchResult {
-		let author = ensure_signed(origin)?;
+	) -> Result<(&mut I, T::AccountId), Error<T>> {
+		let author = ensure_signed(origin).unwrap();
 		match item {
 			Some(ad) => {
 				if *ad.get_author() == author {
-					f(ad, author);
-					Ok(())
+					Ok((ad, author))
 				} else {
-					Err(Error::<T>::NotTheAuthor)?
+					Err(Error::<T>::NotTheAuthor)
 				}
 			}
-			None => Err(Error::<T>::InvalidIndex)?,
+			None => Err(Error::<T>::InvalidIndex),
 		}
 	}
 
@@ -197,23 +195,22 @@ pub mod pallet {
 			tags: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			<Ads<T>>::mutate(index, |ad_op| {
-				check_author(origin, ad_op, |ad, author| {
-					Self::update_tags(index, ad.tags.clone(), tags.clone());
-					ad.title = title;
-					ad.body = body;
-					ad.tags = tags;
-					Self::deposit_event(Event::UpdateAd(author, index));
-				})
+				let (ad, author) = check_author(origin, ad_op)?;
+				Self::update_tags(index, ad.tags.clone(), tags.clone());
+				ad.title = title;
+				ad.body = body;
+				ad.tags = tags;
+				Self::deposit_event(Event::UpdateAd(author, index));
+				Ok(())
 			})
 		}
 
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn delete_ad(origin: OriginFor<T>, index: AdId) -> DispatchResult {
 			<Ads<T>>::try_mutate_exists(index, |ad_op| {
-				check_author(origin, ad_op, |ad, author| {
-					Self::update_tags(index, ad.tags.clone(), vec![]);
-					Self::deposit_event(Event::DeleteAd(author, index));
-				})?;
+				let (ad, author) = check_author(origin, ad_op)?;
+				Self::update_tags(index, ad.tags.clone(), vec![]);
+				Self::deposit_event(Event::DeleteAd(author, index));
 				*ad_op = None;
 				Ok(())
 			})
@@ -227,22 +224,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			<Ads<T>>::try_mutate(index, |ad_op| {
-				let author = ensure_signed(origin)?;
+				let (ad, author) = check_author(origin, ad_op)?;
 				let pallet = ADZ_PALLET_ID.into_account();
 				let fee = T::CreateFee::get();
 				T::Currency::transfer(&pallet, &author, fee, AllowDeath)?;
-				match ad_op {
-					Some(ad) => {
-						if *ad.get_author() == author {
-							ad.selected_applicant = Some(applicant);
-							Self::deposit_event(Event::ApplicantSelected(author, index));
-							Ok(())
-						} else {
-							Err(Error::<T>::NotTheAuthor)?
-						}
-					}
-					None => Err(Error::<T>::InvalidIndex)?,
-				}
+				ad.selected_applicant = Some(applicant);
+				Self::deposit_event(Event::ApplicantSelected(author, index));
+				Ok(())
 			})
 		}
 
@@ -275,10 +263,10 @@ pub mod pallet {
 			body: Vec<u8>,
 		) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |c| {
-				check_author(origin, c, |comment, author| {
-					comment.body = body;
-					Self::deposit_event(Event::UpdateComment(author, ad_id, comment_id));
-				})
+				let (comment, author) = check_author(origin, c)?;
+				comment.body = body;
+				Self::deposit_event(Event::UpdateComment(author, ad_id, comment_id));
+				Ok(())
 			})
 		}
 
@@ -289,9 +277,8 @@ pub mod pallet {
 			comment_id: CommentId,
 		) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| {
-				check_author(origin, comment, |_, author| {
-					Self::deposit_event(Event::DeleteComment(author, ad_id, comment_id));
-				})?;
+				let (_, author) = check_author(origin, comment)?;
+				Self::deposit_event(Event::DeleteComment(author, ad_id, comment_id));
 				*comment = None;
 				Ok(())
 			})
