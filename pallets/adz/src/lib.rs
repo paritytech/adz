@@ -35,6 +35,8 @@ pub mod pallet {
 
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
+	pub type AdId = u32;
+	pub type CommentId = u32;
 
 	const ADZ_PALLET_ID: PalletId = PalletId(*b"py/adzzz");
 
@@ -78,30 +80,30 @@ pub mod pallet {
 
 	// an index between Tags and Ads
 	#[pallet::storage]
-	pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<u32>>, ValueQuery>;
+	pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<AdId>>, ValueQuery>;
 
 	#[pallet::storage]
-	pub(super) type Ads<T: Config> = StorageMap<_, Identity, u32, Ad<T>>;
+	pub(super) type Ads<T: Config> = StorageMap<_, Identity, AdId, Ad<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn comments_getter)]
 	pub(super) type Comments<T: Config> =
-		StorageDoubleMap<_, Identity, u32, Identity, u32, Comment<T>>;
+		StorageDoubleMap<_, Identity, AdId, Identity, CommentId, Comment<T>>;
 
 	// Events
 	#[pallet::event]
 	#[pallet::metadata(t::accountid = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		UpdateAd(T::AccountId, u32),
-		CreateAd(T::AccountId, u32),
-		DeleteAd(T::AccountId, u32),
+		UpdateAd(T::AccountId, AdId),
+		CreateAd(T::AccountId, AdId),
+		DeleteAd(T::AccountId, AdId),
 
-		UpdateComment(T::AccountId, u32, u32),
-		CreateComment(T::AccountId, u32, u32),
-		DeleteComment(T::AccountId, u32, u32),
+		UpdateComment(T::AccountId, AdId, CommentId),
+		CreateComment(T::AccountId, AdId, CommentId),
+		DeleteComment(T::AccountId, AdId, CommentId),
 
-		ApplicantSelected(T::AccountId, u32),
+		ApplicantSelected(T::AccountId, AdId),
 	}
 
 	// Errors
@@ -189,7 +191,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn update_ad(
 			origin: OriginFor<T>,
-			index: u32,
+			index: AdId,
 			title: Vec<u8>,
 			body: Vec<u8>,
 			tags: Vec<Vec<u8>>,
@@ -206,7 +208,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
-		pub fn delete_ad(origin: OriginFor<T>, index: u32) -> DispatchResult {
+		pub fn delete_ad(origin: OriginFor<T>, index: AdId) -> DispatchResult {
 			<Ads<T>>::try_mutate_exists(index, |ad_op| {
 				check_author(origin, ad_op, |ad, author| {
 					Self::update_tags(index, ad.tags.clone(), vec![]);
@@ -220,7 +222,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn select_applicant(
 			origin: OriginFor<T>,
-			index: u32,
+			index: AdId,
 			applicant: T::AccountId,
 		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
@@ -236,7 +238,7 @@ pub mod pallet {
 		Comments
 		*****/
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
-		pub fn create_comment(origin: OriginFor<T>, body: Vec<u8>, ad_id: u32) -> DispatchResult {
+		pub fn create_comment(origin: OriginFor<T>, body: Vec<u8>, ad_id: AdId) -> DispatchResult {
 			let author = ensure_signed(origin)?;
 			// get the time from the timestamp on the block
 			let created = <timestamp::Pallet<T>>::now().saturated_into::<u64>();
@@ -256,8 +258,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
 		pub fn update_comment(
 			origin: OriginFor<T>,
-			ad_id: u32,
-			comment_id: u32,
+			ad_id: AdId,
+			comment_id: CommentId,
 			body: Vec<u8>,
 		) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |c| {
@@ -269,7 +271,11 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
-		pub fn delete_comment(origin: OriginFor<T>, ad_id: u32, comment_id: u32) -> DispatchResult {
+		pub fn delete_comment(
+			origin: OriginFor<T>,
+			ad_id: AdId,
+			comment_id: CommentId,
+		) -> DispatchResult {
 			<Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| {
 				check_author(origin, comment, |_, author| {
 					Self::deposit_event(Event::DeleteComment(author, ad_id, comment_id));
@@ -282,9 +288,9 @@ pub mod pallet {
 }
 
 fn get_set<'a>(
-	map: &'a mut BTreeMap<Vec<u8>, BTreeSet<u32>>,
+	map: &'a mut BTreeMap<Vec<u8>, BTreeSet<CommentId>>,
 	key: &Vec<u8>,
-) -> &'a mut BTreeSet<u32> {
+) -> &'a mut BTreeSet<CommentId> {
 	if map.contains_key(key) {
 		map.get_mut(key).unwrap()
 	} else {
@@ -293,7 +299,7 @@ fn get_set<'a>(
 }
 
 impl<T: Config> Pallet<T> {
-	fn update_tags(ad_id: u32, old_tags: Vec<Vec<u8>>, new_tags: Vec<Vec<u8>>) {
+	fn update_tags(ad_id: AdId, old_tags: Vec<Vec<u8>>, new_tags: Vec<Vec<u8>>) {
 		<Tags<T>>::mutate(|tags| {
 			//remove old tags
 			for old_tag in old_tags.iter() {
