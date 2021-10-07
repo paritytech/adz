@@ -1,6 +1,6 @@
 use super::*;
 use crate::mock::*;
-use frame_support::assert_ok;
+use frame_support::{assert_ok, traits::Currency};
 use frame_system::ensure_signed;
 
 #[test]
@@ -76,6 +76,7 @@ fn update_an_ad() {
 #[test]
 fn create_an_comment() {
     new_test_ext().execute_with(|| {
+        Balances::total_balance(&0);
         // Dispatch a signed extrinsic.
         assert_ok!(Adz::create_ad(
             Origin::signed(1),

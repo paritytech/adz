@@ -180,7 +180,7 @@ pub mod pallet {
                 <Ads<T>>::insert(*num_of_ads, ad);
                 Self::update_tags(*num_of_ads, vec![], tags);
                 Self::deposit_event(Event::CreateAd(author, *num_of_ads));
-                // increament the number of ads made
+                // increment the number of ads made
                 *num_of_ads += 1;
                 Ok(())
             })
