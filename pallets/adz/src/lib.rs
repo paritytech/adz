@@ -29,13 +29,13 @@ use pallet_timestamp as timestamp;
 
 #[derive(Encode, Decode, PartialEq, RuntimeDebug, scale_info::TypeInfo)]
 pub struct Ad<AccountId> {
-    pub author: AccountId,
-    pub selected_applicant: Option<AccountId>,
-    pub title: Vec<u8>,
-    pub body: Vec<u8>,
-    pub tags: Vec<Vec<u8>>,
-    pub created: u64,
-    pub num_of_comments: u32,
+    author: AccountId,
+    selected_applicant: Option<AccountId>,
+    title: Vec<u8>,
+    body: Vec<u8>,
+    tags: Vec<Vec<u8>>,
+    created: u64,
+    num_of_comments: u32,
 }
 
 #[derive(Encode, Decode, PartialEq, sp_runtime::RuntimeDebug, scale_info::TypeInfo)]
