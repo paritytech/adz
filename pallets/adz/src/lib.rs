@@ -1,7 +1,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(map_try_insert)]
 
-pub use pallet::*;
+use codec::{Decode, Encode};
+use frame_support::{
+    dispatch::DispatchResult,
+    traits::{Currency, ExistenceRequirement::AllowDeath},
+    PalletId,
+};
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_runtime::{traits::AccountIdConversion, RuntimeDebug};
+use sp_std::prelude::Vec;
+use sp_std::{
+    collections::{btree_map::*, btree_set::*},
+    prelude::*,
+};
 
 #[cfg(test)]
 mod mock;
@@ -12,26 +24,32 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use sp_std::collections::{btree_map::*, btree_set::*};
-use sp_std::prelude::Vec;
+pub use pallet::*;
+use pallet_timestamp as timestamp;
+
+#[derive(Encode, Decode, PartialEq, RuntimeDebug, scale_info::TypeInfo)]
+pub struct Ad<AccountId> {
+    pub author: AccountId,
+    pub selected_applicant: Option<AccountId>,
+    pub title: Vec<u8>,
+    pub body: Vec<u8>,
+    pub tags: Vec<Vec<u8>>,
+    pub created: u64,
+    pub num_of_comments: u32,
+}
+
+#[derive(Encode, Decode, PartialEq, sp_runtime::RuntimeDebug, scale_info::TypeInfo)]
+pub struct Comment<AccountId> {
+    author: AccountId,
+    body: Vec<u8>,
+    created: u64,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-    use codec::{Decode, Encode};
-    use frame_support::{
-        dispatch::DispatchResult,
-        pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement::AllowDeath},
-        PalletId,
-    };
+    use super::*;
+    use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use pallet_timestamp as timestamp;
-    use sp_arithmetic::traits::SaturatedConversion;
-    use sp_runtime::traits::AccountIdConversion;
-    use sp_std::{
-        collections::{btree_map::*, btree_set::*},
-        prelude::*,
-    };
 
     type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
     type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
@@ -51,24 +69,6 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    #[derive(Encode, Decode, PartialEq, RuntimeDebug)]
-    pub struct Comment<T: Config> {
-        author: T::AccountId,
-        body: Vec<u8>,
-        created: u64,
-    }
-
-    #[derive(Encode, Decode, PartialEq, RuntimeDebug)]
-    pub struct Ad<T: Config> {
-        pub author: T::AccountId,
-        pub selected_applicant: Option<T::AccountId>,
-        pub title: Vec<u8>,
-        pub body: Vec<u8>,
-        pub tags: Vec<Vec<u8>>,
-        pub created: u64,
-        pub num_of_comments: u32,
-    }
-
     // Storage
     #[pallet::type_value]
     pub(super) fn NumOfAdsDefault() -> u32 {
@@ -83,16 +83,15 @@ pub mod pallet {
     pub(super) type Tags<T> = StorageValue<_, BTreeMap<Vec<u8>, BTreeSet<AdId>>, ValueQuery>;
 
     #[pallet::storage]
-    pub(super) type Ads<T: Config> = StorageMap<_, Identity, AdId, Ad<T>>;
+    pub(super) type Ads<T: Config> = StorageMap<_, Identity, AdId, Ad<T::AccountId>>;
 
     #[pallet::storage]
     #[pallet::getter(fn comments_getter)]
     pub(super) type Comments<T: Config> =
-        StorageDoubleMap<_, Identity, AdId, Identity, CommentId, Comment<T>>;
+        StorageDoubleMap<_, Identity, AdId, Identity, CommentId, Comment<T::AccountId>>;
 
     // Events
     #[pallet::event]
-    #[pallet::metadata(t::accountid = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         UpdateAd(T::AccountId, AdId),
@@ -119,16 +118,16 @@ pub mod pallet {
 
     #[macro_export]
     macro_rules! impl_get_author {
-	    ($($t:ty),+ $(,)?) => ($(
-	        impl<T: Config> HasAuthor<T> for $t {
-                    fn get_author(&self) -> &T::AccountId {
-                            &self.author
-                    }
+        ($($t:ty),+ $(,)?) => ($(
+            impl<T: Config> HasAuthor<T> for $t {
+                fn get_author(&self) -> &T::AccountId {
+                    &self.author
                 }
-	    )+)
-	}
+            }
+        )+)
+    }
 
-    impl_get_author!(Comment<T>, Ad<T>);
+    impl_get_author!(Comment<T::AccountId>, Ad<T::AccountId>);
 
     fn check_author<T: Config, I: HasAuthor<T>>(
         origin: OriginFor<T>,
@@ -195,7 +194,7 @@ pub mod pallet {
             tags: Vec<Vec<u8>>,
         ) -> DispatchResult {
             <Ads<T>>::mutate(index, |ad_op| {
-                let (ad, author) = check_author(origin, ad_op)?;
+                let (ad, author) = check_author::<T, _>(origin, ad_op)?;
                 Self::update_tags(index, ad.tags.clone(), tags.clone());
                 ad.title = title;
                 ad.body = body;
@@ -208,7 +207,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + <T as frame_system::Config>::DbWeight::get().writes(1))]
         pub fn delete_ad(origin: OriginFor<T>, index: AdId) -> DispatchResult {
             <Ads<T>>::try_mutate_exists(index, |ad_op| {
-                let (ad, author) = check_author(origin, ad_op)?;
+                let (ad, author) = check_author::<T, _>(origin, ad_op)?;
                 Self::update_tags(index, ad.tags.clone(), vec![]);
                 Self::deposit_event(Event::DeleteAd(author, index));
                 *ad_op = None;
@@ -249,7 +248,7 @@ pub mod pallet {
             body: Vec<u8>,
         ) -> DispatchResult {
             <Comments<T>>::try_mutate_exists(ad_id, comment_id, |c| {
-                let (comment, author) = check_author(origin, c)?;
+                let (comment, author) = check_author::<T, _>(origin, c)?;
                 comment.body = body;
                 Self::deposit_event(Event::UpdateComment(author, ad_id, comment_id));
                 Ok(())
@@ -263,7 +262,7 @@ pub mod pallet {
             comment_id: CommentId,
         ) -> DispatchResult {
             <Comments<T>>::try_mutate_exists(ad_id, comment_id, |comment| {
-                let (_, author) = check_author(origin, comment)?;
+                let (_, author) = check_author::<T, _>(origin, comment)?;
                 Self::deposit_event(Event::DeleteComment(author, ad_id, comment_id));
                 *comment = None;
                 Ok(())
@@ -281,7 +280,7 @@ pub mod pallet {
         ) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             <Ads<T>>::try_mutate(index, |ad_op| {
-                let (ad, author) = check_author(origin, ad_op)?;
+                let (ad, author) = check_author::<T, _>(origin, ad_op)?;
                 let pallet = ADZ_PALLET_ID.into_account();
                 let fee = T::CreateFee::get();
                 T::Currency::transfer(&pallet, &author, fee, AllowDeath)?;
