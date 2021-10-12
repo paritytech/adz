@@ -5223,6 +5223,7 @@ dependencies = [
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
+ "scale-info",
  "serde",
  "sp-api",
  "sp-block-builder",
