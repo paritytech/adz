@@ -96,7 +96,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+	AllPalletsWithSystem,
 >;
 
 impl_opaque_keys! {
@@ -115,6 +115,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
+    state_version: 0,
 };
 
 /// This determines the average expected block time that we are targeting.
@@ -234,6 +235,8 @@ impl frame_system::Config for Runtime {
     type SS58Prefix = SS58Prefix;
     /// The action to take on a Runtime Upgrade
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -296,7 +299,7 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type Event = Event;
-    type OnValidationData = ();
+    type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
     type OutboundXcmpMessageSource = XcmpQueue;
     type DmpMessageHandler = DmpQueue;
@@ -446,6 +449,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type ChannelInfo = ParachainSystem;
     type VersionWrapper = ();
+    type ExecuteOverweightOrigin = frame_system::EnsureRoot<AccountId>;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -587,8 +591,8 @@ impl_runtime_apis! {
     }
 
     impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
-        fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
-            ParachainSystem::collect_collation_info()
+        fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
+            ParachainSystem::collect_collation_info(header)
         }
     }
 
