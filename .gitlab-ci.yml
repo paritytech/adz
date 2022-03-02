@@ -31,10 +31,10 @@ build:cargo:
     - apt-get install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source ~/.cargo/env
-    - rustup override set nightly-2021-08-01
-    - rustup toolchain install nightly-2021-08-01
-    - rustup target add wasm32-unknown-unknown --toolchain nightly-2021-08-01
-    - rustup default nightly-2021-08-01
+    - rustup override set nightly-2022-02-16
+    - rustup toolchain install nightly-2022-02-16
+    - rustup target add wasm32-unknown-unknown --toolchain nightly-2022-02-16
+    - rustup default nightly-2022-02-16
     - rustc --version && cargo --version  # Print version info for debugging
     - rustup toolchain list
     - cargo build
